@@ -1,4 +1,4 @@
-name: Build APK from Zip
+name: Build APK Without Gradlew
 
 on:
   push:
@@ -19,15 +19,33 @@ jobs:
         java-version: '17'
         distribution: 'temurin'
 
+    - name: Setup Gradle
+      uses: gradle/actions/setup-gradle@v3
+      with:
+        gradle-version: '8.2'
+
     - name: Extract Zip and Build APK
       run: |
         unzip -q code.zip -d extracted_project
-        GRADLEW_PATH=$(find extracted_project -name "gradlew" | head -n 1)
-        PROJECT_DIR=$(dirname "$GRADLEW_PATH")
-        echo "Project mila is folder mein: $PROJECT_DIR"
+        
+        # build.gradle dhoondh kar main project folder mein jana
+        APP_BUILD=$(find extracted_project -path "*/app/build.gradle*" | head -n 1)
+        if [ -n "$APP_BUILD" ]; then
+          PROJECT_DIR=$(dirname $(dirname "$APP_BUILD"))
+        else
+          ANY_BUILD=$(find extracted_project -name "build.gradle*" | head -n 1)
+          PROJECT_DIR=$(dirname "$ANY_BUILD")
+        fi
+        
+        echo "Building project in: $PROJECT_DIR"
         cd "$PROJECT_DIR"
-        chmod +x gradlew
-        ./gradlew assembleDebug
+        
+        if [ -f "gradlew" ]; then
+          chmod +x gradlew
+          ./gradlew assembleDebug
+        else
+          gradle assembleDebug
+        fi
 
     - name: Upload Compiled APK
       uses: actions/upload-artifact@v4
